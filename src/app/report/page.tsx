@@ -40,7 +40,7 @@ function AnalysisReport() {
           <div className="grid grid-cols-2 gap-3 mt-2">
             <div>
               <p className="text-sm text-gray-500">Size</p>
-              <p className="font-medium">0.9cm</p>
+              <p className="font-medium">0.2cm</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Density</p>
@@ -57,7 +57,7 @@ function AnalysisReport() {
               <span className="text-sm">High Risk</span>
             </div>
             <div className="w-full bg-gray-200 h-2 rounded-full">
-              <div className="bg-amber-500 h-2 rounded-full w-[55%]"></div>
+              <div className="bg-amber-300 h-2 rounded-full w-[35%]"></div>
             </div>
             <p className="text-sm text-gray-600">
               Based on nodule characteristics, location, and history
@@ -82,9 +82,11 @@ function AnalysisReport() {
         </div>
         <div className="mt-3">
           <p className="text-sm text-gray-700">
-            <span className="font-medium text-amber-700">Growth detected:</span>{" "}
-            Primary nodule has increased in size by 0.2cm since previous scan
-            (.7cm → 0.9cm)
+            <span className="font-medium text-amber-700">
+              Shrinkage detected:
+            </span>{" "}
+            Primary nodule has decreased in size by 0.2cm since previous scan (
+            0.4cm → .2cm )
           </p>
         </div>
       </div>

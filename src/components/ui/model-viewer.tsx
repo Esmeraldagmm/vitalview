@@ -58,7 +58,7 @@ function Model({
   useEffect(() => {
     if (!scene) return;
 
-    scene.traverse((node) => {
+    scene.traverse((node: { material: any }) => {
       if (node instanceof THREE.Mesh) {
         if (node.material) {
           // Process all materials (either array or single)
@@ -297,11 +297,16 @@ export default function ModelViewer({
                 onSizeChange={(size) => setModelSize(size)}
               />
 
-              {/* New Tumor Model (Shrinkage Effect) */}
               <TumorModel
                 tumorData={tumorStages[tumorStage]}
-                position={[-60, 70, 20]}
+                position={[-60, 70, 15]}
               />
+              <Html position={[-60, 70, 20]}>
+                <div className="annotation w-40 p-2 bg-background/80 rounded-lg text-xs text-muted-foreground">
+                  Primary nodule ({(1 - tumorStage * 0.2).toFixed(1)}cm) -
+                  Medium risk
+                </div>
+              </Html>
             </Center>
           </Bounds>
 
