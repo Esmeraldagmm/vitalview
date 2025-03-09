@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import ModelViewer from "@/components/ui/model-viewer";
 
 function ReportPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -50,7 +51,7 @@ function ReportPage() {
       )}
 
       {/* Display AI Analysis & 3D Model After Upload */}
-      {!file && (
+      {file && (
         <>
           {/* title that will remain the same no matter the scan */}
           <motion.div
@@ -103,8 +104,8 @@ function ReportPage() {
               className="bg-white shadow-lg rounded-lg p-6 flex justify-center"
             >
               {/* Here is the section to add 3D model */}
-              <div className="w-80 h-80 bg-gray-300 rounded-lg flex items-center justify-center">
-                <p className="text-slate-700">[3D Model Here]</p>
+              <div className="w-full h-80 bg-gray-300 rounded-lg flex items-center justify-center">
+                <ModelViewer />
               </div>
             </motion.div>
           </div>

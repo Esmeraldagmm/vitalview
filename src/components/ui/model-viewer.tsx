@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -10,13 +10,12 @@ import {
   useGLTF,
   useProgress,
   Html,
-  Center,
   Bounds,
   useBounds,
   type BoundsApi,
 } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+
 import { Loader2, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 // Loader component to show progress
@@ -72,7 +71,11 @@ function Model({
     });
   }, [scene]);
 
-  return <primitive object={scene} />;
+  return (
+    <group position={position}>
+      <primitive object={scene} />
+    </group>
+  );
 }
 
 // Main 3D viewer component
@@ -80,9 +83,9 @@ export default function ModelViewer({
   modelUrls = ["./bmw.glb", "./scene.gltf"],
   backgroundColor = "#f5f5f5",
   environmentPreset = "studio",
-  height = "100vh",
+  height = "100%",
 }: {
-  modelUrl?: string;
+  modelUrls?: [string, string];
   backgroundColor?: string;
   environmentPreset?:
     | "apartment"
@@ -107,7 +110,7 @@ export default function ModelViewer({
   return (
     <div className="relative w-full" style={{ height }}>
       {/* Controls overlay */}
-      <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-2 px-4">
+      <div className="absolute top-2 left-0 right-0 z-10 flex justify-left gap-2 px-4">
         <div className="flex items-center gap-2 rounded-lg bg-background/80 p-2 backdrop-blur-sm">
           <Button
             variant="outline"
@@ -118,38 +121,12 @@ export default function ModelViewer({
             <RotateCcw className="h-4 w-4" />
             <span className="sr-only">Toggle auto-rotate</span>
           </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (boundsRef.current) {
-                boundsRef.current.refresh().reset();
-              }
-            }}
-          >
-            <ZoomIn className="h-4 w-4" />
-            <span className="sr-only">Reset view</span>
-          </Button>
-
-          <div className="flex items-center gap-2">
-            <ZoomOut className="h-4 w-4 text-muted-foreground" />
-            <Slider
-              className="w-24"
-              value={[zoom]}
-              min={0.5}
-              max={2}
-              step={0.1}
-              onValueChange={(value) => setZoom(value[0])}
-            />
-            <ZoomIn className="h-4 w-4 text-muted-foreground" />
-          </div>
         </div>
       </div>
 
       {/* 3D Canvas */}
       <Canvas
-        style={{ background: backgroundColor }}
+        style={{ background: backgroundColor, width: "100%", height: "100%" }}
         camera={{ position: [0, 0, 5], fov: 75 }}
         gl={{ preserveDrawingBuffer: true }}
       >
@@ -162,24 +139,22 @@ export default function ModelViewer({
             observe={!initialFitComplete} // Only observe before initial fit
             onFit={() => setInitialFitComplete(true)}
           >
-            <Center scale={zoom}>
-              <Model
-                url={modelUrls[0]}
-                position={[0, 0, 0]}
-                onSizeChange={(size) => {
-                  setMinZoom(size * 0.1);
-                  setMaxZoom(size * 2);
-                }}
-              />
-              <Model
-                url={modelUrls[1]}
-                position={[0, 0, 0]}
-                onSizeChange={(size) => {
-                  setMinZoom(size * 0.1);
-                  setMaxZoom(size * 2);
-                }}
-              />
-            </Center>
+            <Model
+              url={modelUrls[0]}
+              position={[50, 50, 5]}
+              onSizeChange={(size) => {
+                setMinZoom(size * 0.1);
+                setMaxZoom(size * 2);
+              }}
+            />
+            <Model
+              url={modelUrls[1]}
+              position={[0, 0, 0]}
+              onSizeChange={(size) => {
+                setMinZoom(size * 0.1);
+                setMaxZoom(size * 2);
+              }}
+            />
           </Bounds>
 
           <Environment preset={environmentPreset} />

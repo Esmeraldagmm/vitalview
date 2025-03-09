@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "lucide-react";
+import ModelViewer from "@/components/ui/model-viewer";
 
 import LandingPage from "@/app/LandingPage";
 import ReportPage from "@/app/report/page";
