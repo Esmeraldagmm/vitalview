@@ -253,10 +253,6 @@ export default function ModelViewer({
             <ZoomOut className="h-4 w-4" />
           </Button>
 
-          <div className="text-xs text-muted-foreground px-1 min-w-8 text-center">
-            {zoomLevel}%
-          </div>
-
           <Button variant="outline" size="icon" onClick={handleZoomIn}>
             <ZoomIn className="h-4 w-4" />
           </Button>
