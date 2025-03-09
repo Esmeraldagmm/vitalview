@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   OrbitControls,
@@ -163,27 +163,92 @@ export default function ModelViewer({
   height?: string;
 }) {
   const [autoRotate, setAutoRotate] = useState(false);
-  const [zoom, setZoom] = useState(1);
   const [initialFitComplete, setInitialFitComplete] = useState(false);
-  const [minZoom, setMinZoom] = useState(1);
-  const [maxZoom, setMaxZoom] = useState(10);
-  const boundsRef = useRef<BoundsApi>(null);
+  const [modelSize, setModelSize] = useState(5);
 
-  // Reset view function
-  const resetView = () => {
-    if (boundsRef.current) {
-      setZoom(1); // Reset zoom state
-      boundsRef.current.refresh().fit();
+  // Use separate state for camera zoom (directly affects the camera)
+  const [cameraZoom, setCameraZoom] = useState(1);
+
+  const [zoomLevel, setZoomLevel] = useState(100);
+
+  // Use refs to access Three.js objects
+  const boundsRef = useRef(null);
+  const controlsRef = useRef(null);
+  const cameraRef = useRef(null);
+
+  // Keep track of initial camera position after first fit
+  const initialCameraPosition = useRef(null);
+
+  // Record initial camera position after first fit
+  useEffect(() => {
+    if (
+      initialFitComplete &&
+      cameraRef.current &&
+      !initialCameraPosition.current
+    ) {
+      initialCameraPosition.current = {
+        position: cameraRef.current.position.clone(),
+        zoom: cameraRef.current.zoom,
+        target: controlsRef.current?.target.clone() || new THREE.Vector3(),
+      };
+    }
+  }, [initialFitComplete]);
+
+  const handleZoomIn = () => {
+    if (cameraRef.current) {
+      cameraRef.current.position.multiplyScalar(0.8); // Move closer
     }
   };
 
-  // Zoom controls
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev * 1.2, maxZoom));
+  const handleZoomOut = () => {
+    if (cameraRef.current) {
+      cameraRef.current.position.multiplyScalar(1.25); // Move further
+    }
   };
 
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev * 0.8, minZoom));
+  // Custom frame hook to apply zoom changes to camera
+  const CameraUpdater = () => {
+    const { camera } = useThree();
+
+    // Save camera ref for reset function
+    useEffect(() => {
+      if (camera) {
+        cameraRef.current = camera;
+      }
+    }, [camera]);
+
+    // Apply zoom to camera every frame
+    useFrame(({ camera }) => {
+      if (initialCameraPosition.current) {
+        // Calculate distance vector from target to camera
+        const offset = new THREE.Vector3().subVectors(
+          camera.position,
+          controlsRef.current?.target || new THREE.Vector3()
+        );
+
+        // Scale offset by zoom factor relative to initial position
+        const initialDistance =
+          initialCameraPosition.current.position.distanceTo(
+            initialCameraPosition.current.target
+          );
+
+        const scaleFactor = initialDistance / offset.length();
+        const targetDistance = initialDistance / cameraZoom;
+
+        // Apply new distance while maintaining direction
+        offset.normalize().multiplyScalar(targetDistance / scaleFactor);
+
+        // Set camera position based on target + offset
+        camera.position.copy(
+          new THREE.Vector3().addVectors(
+            controlsRef.current?.target || new THREE.Vector3(),
+            offset
+          )
+        );
+      }
+    });
+
+    return null;
   };
 
   return (
@@ -191,6 +256,7 @@ export default function ModelViewer({
       {/* Controls overlay */}
       <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-2 px-4">
         <div className="flex items-center gap-2 rounded-lg bg-background/80 p-2 backdrop-blur-sm">
+          {/* Auto-rotate button */}
           <Button
             variant="outline"
             size="icon"
@@ -201,58 +267,64 @@ export default function ModelViewer({
             <span className="sr-only">Toggle auto-rotate</span>
           </Button>
 
-          <Button variant="outline" size="icon" onClick={resetView}>
-            <ZoomIn className="h-4 w-4" />
-            <span className="sr-only">Reset view</span>
-          </Button>
+          {/* Zoom controls */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleZoomOut}
+              disabled={cameraZoom <= 0.1}
+            >
+              <ZoomOut className="h-4 w-4" />
+              <span className="sr-only">Zoom out</span>
+            </Button>
 
-          {/* Add functional zoom buttons */}
-          <Button variant="outline" size="icon" onClick={handleZoomOut}>
-            <ZoomOut className="h-4 w-4" />
-            <span className="sr-only">Zoom out</span>
-          </Button>
-
-          <Button variant="outline" size="icon" onClick={handleZoomIn}>
-            <ZoomIn className="h-4 w-4" />
-            <span className="sr-only">Zoom in</span>
-          </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleZoomIn}
+              disabled={cameraZoom >= 5}
+            >
+              <ZoomIn className="h-4 w-4" />
+              <span className="sr-only">Zoom in</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* 3D Canvas */}
+      {/* 3D Canvas with updated controls */}
       <Canvas
         style={{ background: backgroundColor }}
         camera={{ position: [0, 0, 5], fov: 75 }}
         gl={{
           preserveDrawingBuffer: true,
-          alpha: true, // Enable alpha for better transparency
+          alpha: true,
         }}
       >
         <PerspectiveCamera makeDefault position={[0, 0, 5]} />
+        <CameraUpdater />
 
         <Suspense fallback={<Loader />}>
           <Bounds
             ref={boundsRef}
             fit
             clip
-            observe={!initialFitComplete} // Only observe before initial fit
+            observe={!initialFitComplete}
             onFit={() => setInitialFitComplete(true)}
           >
-            <Center scale={zoom}>
-              {/* Render the glTF scene and inject the tumor model */}
+            <Center>
               <Model
                 url={modelUrls[0]}
-                tumorData={tumorData} // Pass tumorData here
-                position={[80, -30, -20]}
+                tumorData={tumorData}
+                position={[-60, 70, 20]}
                 onSizeChange={(size) => {
-                  setMinZoom(size * 0.1);
-                  setMaxZoom(size * 2);
+                  setModelSize(size);
                 }}
               />
             </Center>
           </Bounds>
 
-          {/* Add stronger lighting to make tumor more visible */}
+          {/* Lighting */}
           <ambientLight intensity={0.8} />
           <directionalLight position={[10, 10, 5]} intensity={1} />
           <directionalLight position={[-10, -10, -5]} intensity={0.5} />
@@ -261,13 +333,15 @@ export default function ModelViewer({
         </Suspense>
 
         <OrbitControls
+          ref={controlsRef}
           autoRotate={autoRotate}
-          autoRotateSpeed={1}
+          autoRotateSpeed={2}
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
-          minDistance={minZoom}
-          maxDistance={maxZoom}
+          minDistance={modelSize * 0.1}
+          maxDistance={modelSize * 5}
+          zoomSpeed={0.8}
         />
       </Canvas>
     </div>
