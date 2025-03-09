@@ -18,7 +18,7 @@ function LandingPage() {
       </p>
       {/* take user to page to upload scan and view report */}
 
-      <Link href="/ReportPage">
+      <Link href="/report">
         <Button
           variant="ghost"
           size="lg"
