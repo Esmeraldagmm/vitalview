@@ -337,7 +337,7 @@ function ReportPage() {
               View Your Vitals
             </h1>
             <p className="text-lg text-slate-600">
-              Upload your scan to visualize and analyze.
+              Explore the 3D model and check your results.
             </p>
           </motion.div>
 
@@ -361,12 +361,13 @@ function ReportPage() {
               className="bg-white shadow-lg rounded-lg p-6 flex justify-center"
             >
               {/* Here is the section to add 3D model */}
+              <ModelViewer tumorData={MockData} />
               {/* <div className="w-80 h-80 bg-gray-300 rounded-lg flex items-center justify-center">
                 <p className="text-slate-700">[3D Model Here]</p>
               </div> */}
-              <div className="w-full h-80 bg-gray-300 rounded-lg flex items-center justify-center">
-                <ModelViewer tumorData={MockData} />
-              </div>
+              {/* <div className="w-full h-80 bg-gray-300 rounded-lg flex items-center justify-center">
+                
+              </div> */}
             </motion.div>
           </div>
         </>

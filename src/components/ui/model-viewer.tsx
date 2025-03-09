@@ -12,6 +12,7 @@ import {
   Html,
   Bounds,
   useBounds,
+  Center,
 } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Loader2, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
