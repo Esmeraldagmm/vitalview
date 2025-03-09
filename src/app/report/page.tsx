@@ -1,9 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import ModelViewer from "@/components/ui/model-viewer";
+import { Calendar, ArrowRight } from "lucide-react";
+
+function AnalysisReport() {
+  const [loading, setLoading] = useState(true);
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    // Simulate a loading process (2 seconds delay)
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer); // Cleanup the timer when the component unmounts
+  }, [setLoading]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center ">
+        <div className="animate-spin rounded-full border-t-4 border-blue-500 h-12 w-12"></div>
+      </div>
+    );
+  }
+  const openPrintDialog = () => {
+    if (pageRef.current) {
+      window.print(); // This opens the browser's print dialog
+    }
+  };
+  return (
+    <div className="space-y-6" ref={pageRef}>
+      <h3 className="font-semibold text-lg mb-3">Detailed Analysis</h3>
+
+      <div className="space-y-4">
+        <div className="bg-white p-4 rounded-xl shadow-sm">
+          <h4 className="font-medium text-[#2d6ca7]">Nodule Characteristics</h4>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <div>
+              <p className="text-sm text-gray-500">Size</p>
+              <p className="font-medium">0.9cm</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Density</p>
+              <p className="font-medium">Solid</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow-sm">
+          <h4 className="font-medium text-[#2d6ca7]">Cancer Risk Assessment</h4>
+          <div className="mt-2 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Low Risk</span>
+              <span className="text-sm">High Risk</span>
+            </div>
+            <div className="w-full bg-gray-200 h-2 rounded-full">
+              <div className="bg-amber-500 h-2 rounded-full w-[55%]"></div>
+            </div>
+            <p className="text-sm text-gray-600">
+              Based on nodule characteristics, location, and history
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison with previous scans */}
+      <div className="bg-white p-4 rounded-xl shadow-sm">
+        <h3 className="font-semibold mb-3">Comparison with Previous Scans</h3>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <span className="text-sm">Dec 10, 2024</span>
+          </div>
+          <ArrowRight className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <span className="text-sm">Mar 9, 2025</span>
+          </div>
+        </div>
+        <div className="mt-3">
+          <p className="text-sm text-gray-700">
+            <span className="font-medium text-amber-700">Growth detected:</span>{" "}
+            Primary nodule has increased in size by 0.2cm since previous scan
+            (.7cm → 0.9cm)
+          </p>
+        </div>
+      </div>
+      {/* option to download report */}
+
+      <Button
+        variant="ghost"
+        size="lg"
+        className="flex items-center gap-2 bg-violet-100 text-stone-800 mb-10"
+        onClick={openPrintDialog} // Call openPrintDialog on button click
+      >
+        <span className="lg:inline">Print Report</span>
+      </Button>
+    </div>
+  );
+}
 
 const MockData = {
   metadata: {
@@ -186,10 +283,7 @@ const MockData = {
 };
 function ReportPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [description, setDescription] = useState([
-    "AI generate General Description",
-    "AI generate Detailed Analysis",
-  ]);
+
   const [scan, setScan] = useState();
 
   // Handle file upload
@@ -230,7 +324,7 @@ function ReportPage() {
       )}
 
       {/* Display AI Analysis & 3D Model After Upload */}
-      {!file && (
+      {file && (
         <>
           {/* title that will remain the same no matter the scan */}
           <motion.div
@@ -256,23 +350,7 @@ function ReportPage() {
               transition={{ duration: 0.8 }}
               className="bg-white shadow-lg rounded-lg p-6"
             >
-              <h2 className="text-xl text-center font-semibold text-slate-900 mb-4">
-                Analysis Report
-              </h2>
-              <p className="text-slate-600">{description[0]}</p>
-              {/* Here is the section to add the AI from the backend */}
-              <ul className="mt-4 text-slate-700 mb-5">
-                {/* dummy text */}
-                <li> {description[1]}</li>
-              </ul>
-              {/* option to download report */}
-              <Button
-                variant="ghost"
-                size="lg"
-                className="flex items-center gap-2 bg-violet-100 text-stone-800 mb-10"
-              >
-                <span className="lg:inline">Download Report</span>
-              </Button>
+              <AnalysisReport />
             </motion.div>
 
             {/* 3D Lung Visualization - Slide in from Right */}
@@ -283,10 +361,12 @@ function ReportPage() {
               className="bg-white shadow-lg rounded-lg p-6 flex justify-center"
             >
               {/* Here is the section to add 3D model */}
-              <ModelViewer tumorData={MockData} />
               {/* <div className="w-80 h-80 bg-gray-300 rounded-lg flex items-center justify-center">
                 <p className="text-slate-700">[3D Model Here]</p>
               </div> */}
+              <div className="w-full h-80 bg-gray-300 rounded-lg flex items-center justify-center">
+                <ModelViewer tumorData={MockData} />
+              </div>
             </motion.div>
           </div>
         </>

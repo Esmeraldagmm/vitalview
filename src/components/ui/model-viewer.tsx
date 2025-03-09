@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -10,7 +10,6 @@ import {
   useGLTF,
   useProgress,
   Html,
-  Center,
   Bounds,
   useBounds,
 } from "@react-three/drei";
@@ -280,7 +279,7 @@ export default function ModelViewer({
 
       {/* 3D Canvas */}
       <Canvas
-        style={{ background: backgroundColor }}
+        style={{ background: backgroundColor, width: "100%", height: "100%" }}
         camera={{ position: [0, 0, 5], fov: 75 }}
         gl={{ preserveDrawingBuffer: true, alpha: true }}
       >
