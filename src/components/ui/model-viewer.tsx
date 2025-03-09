@@ -16,7 +16,6 @@ import {
   type BoundsApi,
 } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Loader2, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 // Loader component to show progress
@@ -34,55 +33,121 @@ function Loader() {
   );
 }
 
-// Model component that loads and displays the 3D model
+// Model component that loads glTF models or JSON-based BufferGeometry
 function Model({
   url,
+  tumorData,
   position = [0, 0, 0],
   onSizeChange,
 }: {
-  url: string;
+  url?: string;
+  tumorData?: any;
   position?: [number, number, number];
   onSizeChange: (size: number) => void;
 }) {
-  const { scene } = useGLTF(url);
+  const { scene } = useGLTF(url); // Load the glTF model
   const bounds = useBounds(); // Hook for managing bounds
+  const mainSceneRef = useRef(new THREE.Group());
+  const tumorRef = useRef<THREE.Mesh | null>(null);
 
+  // Set up bounds and size calculation
   useEffect(() => {
-    bounds.refresh(scene).fit();
-    const box = new THREE.Box3().setFromObject(scene);
+    if (!scene) return;
+
+    // Clone the scene to avoid modifying the cached original
+    const clonedScene = scene.clone();
+
+    // Clear previous contents and add the cloned scene
+    while (mainSceneRef.current.children.length > 0) {
+      mainSceneRef.current.remove(mainSceneRef.current.children[0]);
+    }
+    mainSceneRef.current.add(clonedScene);
+
+    // Calculate bounds for camera positioning
+    bounds.refresh(mainSceneRef.current).fit();
+    const box = new THREE.Box3().setFromObject(mainSceneRef.current);
     const size = box.getSize(new THREE.Vector3()).length();
-    onSizeChange(size); // Send size to parent
+    onSizeChange(size);
   }, [scene, bounds, onSizeChange]);
 
+  // Apply transparency to the outer model (brain/skull)
   useEffect(() => {
+    if (!scene) return;
+
     scene.traverse((node) => {
       if (node instanceof THREE.Mesh) {
         if (node.material) {
-          if (Array.isArray(node.material)) {
-            node.material.forEach((mat) => {
-              mat.transparent = true;
-              mat.opacity = 0.5;
-            });
-          } else {
-            node.material.transparent = true;
-            node.material.opacity = 0.5;
-          }
+          // Process all materials (either array or single)
+          const materials = Array.isArray(node.material)
+            ? node.material
+            : [node.material];
+
+          materials.forEach((mat) => {
+            // Apply transparency to all outer model materials
+            mat.transparent = true;
+            mat.opacity = 0.3; // More transparent than before
+            mat.depthWrite = false; // Important for better transparency rendering
+            mat.side = THREE.DoubleSide; // Render both sides
+            mat.needsUpdate = true; // Important to apply changes
+          });
         }
       }
     });
   }, [scene]);
 
-  return <primitive object={scene} />;
+  // Add tumor model if data is provided
+  useEffect(() => {
+    if (!tumorData || !mainSceneRef.current) return;
+
+    // Remove previous tumor if it exists
+    if (tumorRef.current) {
+      mainSceneRef.current.remove(tumorRef.current);
+      tumorRef.current = null;
+    }
+
+    try {
+      // Create the tumor geometry from JSON data
+      const loader = new THREE.BufferGeometryLoader();
+      const geometry = loader.parse(tumorData);
+
+      // Create a material that stands out against the outer model
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xff0000, // Bright red to catch attention
+        emissive: 0xff4444, // Light emission for glowing effect
+        emissiveIntensity: 0.5, // Adjust intensity for better visibility
+        side: THREE.DoubleSide,
+        transparent: false, // Ensure it's fully visible
+        opacity: 1.0, // Make it solid
+      });
+
+      // Create and position the tumor mesh
+      const tumorMesh = new THREE.Mesh(geometry, material);
+      tumorMesh.position.set(...position);
+      tumorRef.current = tumorMesh;
+
+      // Add to the scene
+      mainSceneRef.current.add(tumorMesh);
+
+      // Update bounds after adding tumor
+      bounds.refresh(mainSceneRef.current);
+    } catch (error) {
+      console.error("Error creating tumor model:", error);
+    }
+  }, [tumorData, bounds, position]);
+
+  return <primitive object={mainSceneRef.current} />;
 }
 
 // Main 3D viewer component
 export default function ModelViewer({
-  modelUrls = ["./bmw.glb", "./scene.gltf"],
+  modelUrls = ["./scene.gltf"],
+  tumorData,
   backgroundColor = "#f5f5f5",
   environmentPreset = "studio",
   height = "100vh",
 }: {
-  modelUrl?: string;
+  modelUrls?: string[];
+  tumorData?: any;
   backgroundColor?: string;
   environmentPreset?:
     | "apartment"
@@ -99,10 +164,27 @@ export default function ModelViewer({
 }) {
   const [autoRotate, setAutoRotate] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const boundsRef = useRef<BoundsApi>(null);
   const [initialFitComplete, setInitialFitComplete] = useState(false);
   const [minZoom, setMinZoom] = useState(1);
   const [maxZoom, setMaxZoom] = useState(10);
+  const boundsRef = useRef<BoundsApi>(null);
+
+  // Reset view function
+  const resetView = () => {
+    if (boundsRef.current) {
+      setZoom(1); // Reset zoom state
+      boundsRef.current.refresh().fit();
+    }
+  };
+
+  // Zoom controls
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev * 1.2, maxZoom));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev * 0.8, minZoom));
+  };
 
   return (
     <div className="relative w-full" style={{ height }}>
@@ -119,31 +201,21 @@ export default function ModelViewer({
             <span className="sr-only">Toggle auto-rotate</span>
           </Button>
 
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (boundsRef.current) {
-                boundsRef.current.refresh().reset();
-              }
-            }}
-          >
+          <Button variant="outline" size="icon" onClick={resetView}>
             <ZoomIn className="h-4 w-4" />
             <span className="sr-only">Reset view</span>
           </Button>
 
-          <div className="flex items-center gap-2">
-            <ZoomOut className="h-4 w-4 text-muted-foreground" />
-            <Slider
-              className="w-24"
-              value={[zoom]}
-              min={0.5}
-              max={2}
-              step={0.1}
-              onValueChange={(value) => setZoom(value[0])}
-            />
-            <ZoomIn className="h-4 w-4 text-muted-foreground" />
-          </div>
+          {/* Add functional zoom buttons */}
+          <Button variant="outline" size="icon" onClick={handleZoomOut}>
+            <ZoomOut className="h-4 w-4" />
+            <span className="sr-only">Zoom out</span>
+          </Button>
+
+          <Button variant="outline" size="icon" onClick={handleZoomIn}>
+            <ZoomIn className="h-4 w-4" />
+            <span className="sr-only">Zoom in</span>
+          </Button>
         </div>
       </div>
 
@@ -151,29 +223,27 @@ export default function ModelViewer({
       <Canvas
         style={{ background: backgroundColor }}
         camera={{ position: [0, 0, 5], fov: 75 }}
-        gl={{ preserveDrawingBuffer: true }}
+        gl={{
+          preserveDrawingBuffer: true,
+          alpha: true, // Enable alpha for better transparency
+        }}
       >
         <PerspectiveCamera makeDefault position={[0, 0, 5]} />
 
         <Suspense fallback={<Loader />}>
           <Bounds
+            ref={boundsRef}
             fit
             clip
             observe={!initialFitComplete} // Only observe before initial fit
             onFit={() => setInitialFitComplete(true)}
           >
             <Center scale={zoom}>
+              {/* Render the glTF scene and inject the tumor model */}
               <Model
                 url={modelUrls[0]}
-                position={[0, 0, 0]}
-                onSizeChange={(size) => {
-                  setMinZoom(size * 0.1);
-                  setMaxZoom(size * 2);
-                }}
-              />
-              <Model
-                url={modelUrls[1]}
-                position={[0, 0, 0]}
+                tumorData={tumorData} // Pass tumorData here
+                position={[80, -30, -20]}
                 onSizeChange={(size) => {
                   setMinZoom(size * 0.1);
                   setMaxZoom(size * 2);
@@ -181,6 +251,11 @@ export default function ModelViewer({
               />
             </Center>
           </Bounds>
+
+          {/* Add stronger lighting to make tumor more visible */}
+          <ambientLight intensity={0.8} />
+          <directionalLight position={[10, 10, 5]} intensity={1} />
+          <directionalLight position={[-10, -10, -5]} intensity={0.5} />
 
           <Environment preset={environmentPreset} />
         </Suspense>
@@ -200,4 +275,4 @@ export default function ModelViewer({
 }
 
 // Preload the default model
-useGLTF.preload("./bmw.glb");
+useGLTF.preload("./scene.gltf");
